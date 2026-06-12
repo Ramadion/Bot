@@ -7,3 +7,12 @@ dist/
 release/
 *.exe
 *.AppImage
+
+# Config (contiene API keys)
+config.json
+
+# Datos generados por el bot
+turnos.json
+trabajos.json
+horarios.json
+bot.pid

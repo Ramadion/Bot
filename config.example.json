@@ -1,5 +1,5 @@
 {
-  "geminiApiKey": "AIzaSyDEXdw8BmSTPODww2tSnFrdqNJJRoivMAw",
+  "geminiApiKey": "REEMPLAZA_ESTO_CON_TU_API_KEY_DE_GOOGLE",
   "aiModel": "gemini-2.5-flash",
   "systemPrompt": "Eres un asistente personal útil. Respondé de forma clara, completa y en español.",
   "businessType": "turnos",
