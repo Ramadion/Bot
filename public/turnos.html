@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot WhatsApp - Turnos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="sidebar">
+    <h2>🤖 Bot WhatsApp</h2>
+    <a href="/">📊 Dashboard</a>
+    <a href="/horarios">📅 Horarios</a>
+    <a href="/turnos" class="active">📋 Turnos</a>
+    <a href="/trabajos">🔧 Trabajos</a>
+    <a href="/settings">⚙️ Config</a>
+  </nav>
+  <div class="main">
+    <div class="header"><h1>📋 Turnos Reservados</h1><p id="turnosCount">Cargando...</p></div>
+
+    <div class="card" style="overflow-x:auto">
+      <div id="turnosContainer"><div class="empty">Cargando...</div></div>
+    </div>
+  </div>
+  <script>
+    function formatFecha(fecha) {
+      const [y,m,d] = fecha.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    function formatTimestamp(ts) {
+      const d = new Date(ts);
+      return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    async function load() {
+      try {
+        const r = await fetch('/api/turnos');
+        const data = await r.json();
+        document.getElementById('turnosCount').textContent = `Total: ${data.length} turno(s)`;
+
+        if (data.length === 0) {
+          document.getElementById('turnosContainer').innerHTML = '<div class="empty">No hay turnos reservados aún.</div>';
+          return;
+        }
+
+        let html = '<table><thead><tr><th>Fecha</th><th>Hora</th><th>Nombre</th><th>Teléfono</th><th>Info</th><th>Reservado</th><th>Acción</th></tr></thead><tbody>';
+        data.forEach((t, i) => {
+          html += `<tr>
+            <td>${formatFecha(t.fecha)}</td>
+            <td><strong>${t.hora}</strong></td>
+            <td>${t.nombre}</td>
+            <td>${t.telefono}</td>
+            <td>${t.info || '—'}</td>
+            <td style="font-size:12px;color:#888">${formatTimestamp(t.timestamp)}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteTurno(${i})">Cancelar</button></td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('turnosContainer').innerHTML = html;
+      } catch {}
+    }
+
+    async function deleteTurno(index) {
+      if (!confirm('¿Cancelar este turno? El horario se liberará.')) return;
+      try {
+        const r = await fetch(`/api/turnos/${index}`, { method: 'DELETE' });
+        if (r.ok) load();
+        else alert('Error al cancelar');
+      } catch {}
+    }
+
+    load();
+  </script>
+</body>
+</html>

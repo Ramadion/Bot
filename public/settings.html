@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot WhatsApp - Configuración</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <nav class="sidebar">
+    <h2>🤖 Bot WhatsApp</h2>
+    <a href="/">📊 Dashboard</a>
+    <a href="/horarios">📅 Horarios</a>
+    <a href="/turnos">📋 Turnos</a>
+    <a href="/trabajos">🔧 Trabajos</a>
+    <a href="/settings" class="active">⚙️ Config</a>
+  </nav>
+  <div class="main">
+    <div class="header"><h1>⚙️ Configuración</h1><p>Personalizá el comportamiento del bot</p></div>
+
+    <div class="card">
+      <h3>🏪 Tipo de negocio</h3>
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label>Nombre del negocio</label>
+          <input type="text" id="businessName" style="width:100%">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="businessType">
+            <option value="turnos">Solo Turnos (citas, horarios)</option>
+            <option value="trabajos">Solo Trabajos (pedidos, presupuestos)</option>
+            <option value="ambos">Turnos + Trabajos</option>
+          </select>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#888;margin-top:5px">
+        <strong>Turnos:</strong> el cliente elige fecha y hora disponible.<br>
+        <strong>Trabajos:</strong> el cliente describe lo que necesita y completá campos personalizados.<br>
+        <strong>Ambos:</strong> el cliente describe el trabajo y luego elige fecha de entrega.
+      </p>
+    </div>
+
+    <div class="card" id="workFieldsCard">
+      <h3>📋 Campos personalizados para trabajos</h3>
+      <p style="font-size:13px;color:#888;margin-bottom:10px">Estas preguntas se le harán al cliente cuando pida un trabajo.</p>
+      <div id="workFieldsContainer"></div>
+      <button class="btn btn-sm btn-success" onclick="addWorkField()" style="margin-top:10px">+ Agregar campo</button>
+    </div>
+
+    <div class="card">
+      <h3>🔐 API Key</h3>
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label>API Key de Google AI</label>
+          <input type="password" id="apiKey" placeholder="AIza..." style="width:100%">
+        </div>
+        <button class="btn btn-primary" onclick="saveConfig()">Guardar</button>
+      </div>
+      <p style="font-size:12px;color:#888;margin-top:5px">Obtenela gratis en <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a></p>
+    </div>
+
+    <div class="card">
+      <h3>🤖 Modelo de IA</h3>
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label>Modelo</label>
+          <select id="aiModel" style="width:100%">
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>💬 Prompt del sistema</h3>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Instrucción para la IA</label>
+        <textarea id="systemPrompt" rows="4" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📱 WhatsApp</h3>
+      <div class="flex" style="gap:12px;flex-wrap:wrap">
+        <div>
+          <p style="margin-bottom:8px;font-size:13px;color:#666">Estado: <span id="waStatus" class="badge off">Desconectado</span></p>
+          <button class="btn btn-danger" onclick="reconnect()">🔄 Reconectar</button>
+        </div>
+        <div id="qrContainer" style="display:none;text-align:center">
+          <h3 style="margin:10px 0;font-size:14px">📱 Escaneá este QR con WhatsApp</h3>
+          <img id="qrImage" src="" alt="QR" style="max-width:180px;border-radius:8px;display:none">
+          <div id="qrCanvas" style="display:flex;justify-content:center"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📝 Palabras clave - Reserva de turnos</h3>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Triggers de reserva (separados por coma)</label>
+        <input type="text" id="bookingTriggers" style="width:100%">
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Triggers de consulta de horarios (separados por coma)</label>
+        <input type="text" id="consultTriggers" style="width:100%">
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>Triggers de trabajo/pedido (separados por coma)</label>
+        <input type="text" id="workTriggers" style="width:100%">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>💬 Respuestas fijas (keywords → respuesta)</h3>
+      <div id="responsesContainer"></div>
+      <button class="btn btn-sm btn-success" onclick="addResponse()" style="margin-top:10px">+ Agregar respuesta</button>
+    </div>
+
+    <div class="card" style="text-align:right">
+      <button class="btn btn-primary" onclick="saveConfig()" style="font-size:16px;padding:12px 32px">💾 Guardar todo</button>
+    </div>
+  </div>
+
+  <script>
+    let currentConfig = {};
+
+    async function loadConfig() {
+      try {
+        const r = await fetch('/api/config');
+        const cfg = await r.json();
+        currentConfig = cfg;
+        document.getElementById('apiKey').value = '';
+        document.getElementById('aiModel').value = cfg.aiModel || 'gemini-2.5-flash';
+        document.getElementById('systemPrompt').value = cfg.systemPrompt || '';
+        document.getElementById('businessType').value = cfg.businessType || 'turnos';
+        document.getElementById('businessName').value = cfg.businessName || '';
+        document.getElementById('bookingTriggers').value = (cfg.bookingTriggers || []).join(', ');
+        document.getElementById('workTriggers').value = (cfg.workTriggers || []).join(', ');
+        document.getElementById('consultTriggers').value = (cfg.consultTriggers || []).join(', ');
+        renderResponses(cfg.responses || []);
+        renderWorkFields(cfg.workFields || []);
+      } catch {}
+      loadStatus();
+    }
+
+    async function loadStatus() {
+      try {
+        const r = await fetch('/api/status');
+        const s = await r.json();
+        const el = document.getElementById('waStatus');
+        const qrEl = document.getElementById('qrContainer');
+        if (s.botReady) {
+          el.textContent = 'Conectado';
+          el.className = 'badge on';
+          qrEl.style.display = 'none';
+        } else {
+          el.textContent = 'Desconectado';
+          el.className = 'badge off';
+          if (s.qr || s.qrText) {
+            qrEl.style.display = 'block';
+            const qrImg = document.getElementById('qrImage');
+            const qrCanvas = document.getElementById('qrCanvas');
+            if (s.qr) {
+              qrImg.src = s.qr;
+              qrImg.style.display = 'inline';
+              qrCanvas.innerHTML = '';
+            } else if (s.qrText) {
+              qrImg.style.display = 'none';
+              qrCanvas.innerHTML = '';
+              new QRCode(qrCanvas, { text: s.qrText, width: 180, height: 180 });
+            }
+          } else {
+            qrEl.style.display = 'none';
+          }
+        }
+      } catch {}
+    }
+
+    function esc(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function renderResponses(responses) {
+      const container = document.getElementById('responsesContainer');
+      if (responses.length === 0) {
+        container.innerHTML = '<div class="empty">Sin respuestas fijas</div>';
+        return;
+      }
+      let html = '';
+      responses.forEach((r, i) => {
+        html += `<div class="resp-item" style="border:1px solid #eee;padding:12px;margin-bottom:8px;border-radius:8px">
+          <div class="form-row">
+            <div class="form-group" style="flex:1">
+              <label>Palabras clave (separadas por coma)</label>
+              <input type="text" class="resp-keywords" value="${esc(r.keywords.join(', '))}" style="width:100%">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex:1">
+              <label>Respuesta</label>
+              <input type="text" class="resp-reply" value="${esc(r.reply)}" style="width:100%">
+            </div>
+            <button class="btn btn-sm btn-danger" onclick="removeResponse(${i})">×</button>
+          </div>
+        </div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function addResponse() {
+      const cfg = currentConfig;
+      if (!cfg.responses) cfg.responses = [];
+      cfg.responses.push({ keywords: [''], reply: '' });
+      renderResponses(cfg.responses);
+    }
+
+    function removeResponse(index) {
+      const cfg = currentConfig;
+      cfg.responses.splice(index, 1);
+      renderResponses(cfg.responses);
+    }
+
+    function renderWorkFields(fields) {
+      const container = document.getElementById('workFieldsContainer');
+      if (!fields || fields.length === 0) {
+        container.innerHTML = '<div class="empty">Sin campos personalizados</div>';
+        return;
+      }
+      let html = '<table><thead><tr><th>Nombre interno</th><th>Pregunta</th><th>Obligatorio</th><th></th></tr></thead><tbody>';
+      fields.forEach((f, i) => {
+        html += `<tr>
+          <td><input type="text" class="wf-name" value="${esc(f.name)}" style="width:100px"></td>
+          <td><input type="text" class="wf-label" value="${esc(f.label)}" style="width:250px"></td>
+          <td style="text-align:center"><input type="checkbox" class="wf-required" ${f.required ? 'checked' : ''}></td>
+          <td><button class="btn btn-sm btn-danger" onclick="removeWorkField(${i})">×</button></td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function addWorkField() {
+      if (!currentConfig.workFields) currentConfig.workFields = [];
+      currentConfig.workFields.push({ name: 'campo' + (currentConfig.workFields.length+1), label: 'Nuevo campo', type: 'text', required: true });
+      renderWorkFields(currentConfig.workFields);
+    }
+
+    function removeWorkField(index) {
+      currentConfig.workFields.splice(index, 1);
+      renderWorkFields(currentConfig.workFields);
+    }
+
+    function collectWorkFields() {
+      const names = document.querySelectorAll('.wf-name');
+      const labels = document.querySelectorAll('.wf-label');
+      const requireds = document.querySelectorAll('.wf-required');
+      const fields = [];
+      names.forEach((n, i) => {
+        const name = n.value.trim();
+        const label = labels[i] ? labels[i].value.trim() : '';
+        if (name && label) {
+          fields.push({ name, label, type: 'text', required: requireds[i] ? requireds[i].checked : false });
+        }
+      });
+      return fields;
+    }
+
+    function collectResponses() {
+      const keywordsInputs = document.querySelectorAll('.resp-keywords');
+      const replyInputs = document.querySelectorAll('.resp-reply');
+      const responses = [];
+      keywordsInputs.forEach((k, i) => {
+        const keywords = k.value.split(',').map(s => s.trim()).filter(s => s);
+        const reply = replyInputs[i] ? replyInputs[i].value.trim() : '';
+        if (keywords.length > 0 && reply) {
+          responses.push({ keywords, reply });
+        }
+      });
+      return responses;
+    }
+
+    async function saveConfig() {
+      const body = {
+        geminiApiKey: document.getElementById('apiKey').value.trim() || undefined,
+        aiModel: document.getElementById('aiModel').value,
+        systemPrompt: document.getElementById('systemPrompt').value,
+        businessType: document.getElementById('businessType').value,
+        businessName: document.getElementById('businessName').value.trim(),
+        bookingTriggers: document.getElementById('bookingTriggers').value.split(',').map(s => s.trim()).filter(s => s),
+        workTriggers: document.getElementById('workTriggers').value.split(',').map(s => s.trim()).filter(s => s),
+        consultTriggers: document.getElementById('consultTriggers').value.split(',').map(s => s.trim()).filter(s => s),
+        workFields: collectWorkFields(),
+        responses: collectResponses(),
+      };
+      try {
+        const r = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (r.ok) {
+          alert('✅ Configuración guardada');
+          loadConfig();
+        } else {
+          const err = await r.json();
+          alert('Error: ' + (err.error || 'desconocido'));
+        }
+      } catch {}
+    }
+
+    async function reconnect() {
+      if (!confirm('¿Desconectar WhatsApp y mostrar un nuevo QR?')) return;
+      try {
+        const r = await fetch('/api/reconnect', { method: 'POST' });
+        if (r.ok) {
+          alert('🔄 Sesión eliminada. Escaneá el nuevo QR.');
+          setTimeout(loadStatus, 2000);
+        }
+      } catch {}
+    }
+
+    loadConfig();
+    setInterval(loadStatus, 3000);
+  </script>
+</body>
+</html>

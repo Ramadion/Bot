@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot WhatsApp - Horarios</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="sidebar">
+    <h2>🤖 Bot WhatsApp</h2>
+    <a href="/">📊 Dashboard</a>
+    <a href="/horarios" class="active">📅 Horarios</a>
+    <a href="/turnos">📋 Turnos</a>
+    <a href="/trabajos">🔧 Trabajos</a>
+    <a href="/settings">⚙️ Config</a>
+  </nav>
+  <div class="main">
+    <div class="header"><h1>📅 Horarios Disponibles</h1><p>Gestioná los días y horarios para reservar turnos</p></div>
+
+    <div class="card">
+      <h3>➕ Agregar fecha y horarios</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" id="newFecha">
+        </div>
+        <div class="form-group">
+          <label>Horarios (separados por coma, ej: 09:00,10:00,11:00)</label>
+          <input type="text" id="newHoras" placeholder="09:00, 10:00, 11:00" style="width:300px">
+        </div>
+        <button class="btn btn-success" onclick="addFecha()">Agregar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📋 Horarios por fecha</h3>
+      <div id="horariosContainer"><div class="empty">Cargando...</div></div>
+    </div>
+  </div>
+  <script>
+    async function load() {
+      try {
+        const r = await fetch('/api/horarios');
+        const data = await r.json();
+        const keys = Object.keys(data);
+        if (keys.length === 0) {
+          document.getElementById('horariosContainer').innerHTML = '<div class="empty">No hay horarios cargados. Agregá uno arriba.</div>';
+          return;
+        }
+        let html = '<table><thead><tr><th>Fecha</th><th>Horarios</th><th>Acciones</th></tr></thead><tbody>';
+        for (const fecha of keys.sort()) {
+          const [y,m,d] = fecha.split('-');
+          const fechaNice = `${d}/${m}/${y}`;
+          const horas = data[fecha];
+          html += `<tr>
+            <td><strong>${fechaNice}</strong></td>
+            <td><div class="flex">${horas.map(h => `<span style="background:#f0f2f5;padding:3px 10px;border-radius:12px;font-size:13px">${h} <a href="#" onclick="deleteHora('${fecha}','${h}');return false" style="color:#dc3545;text-decoration:none;font-weight:bold">×</a></span>`).join('')}</div></td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteFecha('${fecha}')">Eliminar día</button></td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+        document.getElementById('horariosContainer').innerHTML = html;
+      } catch {}
+    }
+
+    async function addFecha() {
+      const fecha = document.getElementById('newFecha').value;
+      const horasRaw = document.getElementById('newHoras').value.trim();
+      if (!fecha || !horasRaw) return alert('Completá todos los campos');
+      const horas = horasRaw.split(',').map(h => h.trim()).filter(h => h);
+      try {
+        const r = await fetch('/api/horarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fecha, horas }),
+        });
+        if (r.ok) {
+          document.getElementById('newFecha').value = '';
+          document.getElementById('newHoras').value = '';
+          load();
+        } else {
+          const err = await r.json();
+          alert(err.error || 'Error');
+        }
+      } catch {}
+    }
+
+    async function deleteHora(fecha, hora) {
+      if (!confirm(`¿Eliminar ${hora} del ${fecha}?`)) return;
+      try {
+        await fetch(`/api/horarios/${fecha}/${hora}`, { method: 'DELETE' });
+        load();
+      } catch {}
+    }
+
+    async function deleteFecha(fecha) {
+      if (!confirm(`¿Eliminar todos los horarios del ${fecha}?`)) return;
+      try {
+        await fetch(`/api/horarios/${fecha}`, { method: 'DELETE' });
+        load();
+      } catch {}
+    }
+
+    load();
+  </script>
+</body>
+</html>

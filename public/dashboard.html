@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot WhatsApp - Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <nav class="sidebar">
+    <h2>🤖 Bot WhatsApp</h2>
+    <a href="/" class="active">📊 Dashboard</a>
+    <a href="/horarios">📅 Horarios</a>
+    <a href="/turnos">📋 Turnos</a>
+    <a href="/trabajos">🔧 Trabajos</a>
+    <a href="/settings">⚙️ Config</a>
+  </nav>
+  <div class="main">
+    <div class="header">
+      <h1>Dashboard</h1>
+      <p id="statusText">Cargando...</p>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num" id="statResponses">0</div><div class="label">Respuestas</div></div>
+      <div class="stat-card"><div class="num" id="statTurnos">0</div><div class="label">Turnos Reservados</div></div>
+      <div class="stat-card"><div class="num" id="statHorarios">0</div><div class="label">Días Disponibles</div></div>
+      <div class="stat-card"><div class="num" id="statUptime">0</div><div class="label">Horas Activo</div></div>
+    </div>
+    <div class="card" id="qrCard" style="display:none">
+      <h3>📱 Escaneá el código QR</h3>
+      <div class="qr-box">
+        <img id="qrImage" src="" alt="QR" style="display:none">
+        <div id="qrCanvas"></div>
+      </div>
+      <p style="text-align:center;color:#888;font-size:13px">Abrí WhatsApp en tu celular → 3 puntitos → Dispositivos vinculados → Vincular</p>
+    </div>
+    <div class="card">
+      <h3>📝 Últimos mensajes</h3>
+      <div id="logContainer"><div class="empty">Esperando mensajes...</div></div>
+    </div>
+  </div>
+  <script>
+    function formatTime(dateStr) {
+      const d = new Date(dateStr);
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+    function formatUptime(secs) {
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+    async function refresh() {
+      try {
+        const r = await fetch('/api/status');
+        const data = await r.json();
+        document.getElementById('statResponses').textContent = data.responseCount;
+        document.getElementById('statUptime').textContent = formatUptime(data.uptime);
+
+        const h = await fetch('/api/horarios');
+        const horarios = await h.json();
+        document.getElementById('statHorarios').textContent = Object.keys(horarios).length;
+
+        const t = await fetch('/api/turnos');
+        const turnos = await t.json();
+        document.getElementById('statTurnos').textContent = turnos.length;
+
+        if (data.botReady) {
+          document.getElementById('statusText').innerHTML = '✅ Bot <span class="badge on">Conectado</span>';
+          document.getElementById('qrCard').style.display = 'none';
+        } else {
+          document.getElementById('statusText').innerHTML = '⏳ Esperando conexión... <span class="badge off">Desconectado</span>';
+          if (data.qr) {
+            document.getElementById('qrCard').style.display = 'block';
+          const qrImg = document.getElementById('qrImage');
+          const qrCanvas = document.getElementById('qrCanvas');
+          if (data.qr) {
+            qrImg.src = data.qr;
+            qrImg.style.display = 'inline';
+            qrCanvas.innerHTML = '';
+          } else if (data.qrText) {
+            qrImg.style.display = 'none';
+            qrCanvas.innerHTML = '';
+            new QRCode(qrCanvas, { text: data.qrText, width: 220, height: 220 });
+          }
+          }
+        }
+
+        const logEl = document.getElementById('logContainer');
+        if (data.log.length === 0) {
+          logEl.innerHTML = '<div class="empty">Esperando mensajes...</div>';
+        } else {
+          logEl.innerHTML = data.log.map(entry =>
+            `<div class="log-entry">
+              <span class="time">${entry.time}</span>
+              <span class="from">${entry.from}</span>
+              <span class="topic">${entry.topic}</span>
+              <span style="color:#999;font-size:12px">— ${entry.message}</span>
+            </div>`
+          ).join('');
+        }
+      } catch {}
+    }
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>

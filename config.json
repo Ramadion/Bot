@@ -1,0 +1,25 @@
+{
+  "geminiApiKey": "AIzaSyDEXdw8BmSTPODww2tSnFrdqNJJRoivMAw",
+  "aiModel": "gemini-2.5-flash",
+  "systemPrompt": "Eres un asistente personal útil. Respondé de forma clara, completa y en español.",
+  "businessType": "turnos",
+  "businessName": "Mi Negocio",
+  "bookingTriggers": ["turno", "reservar", "agendar", "cita", "turnito"],
+  "workTriggers": ["trabajo", "presupuesto", "cotizacion", "cotización", "encargo", "pedido"],
+  "consultTriggers": ["qué horarios", "que horarios", "cuándo tenés", "cuando tenes", "días disponibles", "disponibilidad", "horario disponible", "horarios disponibles"],
+  "workFields": [
+    { "name": "tipo", "label": "¿Qué tipo de trabajo es?", "type": "text", "required": true },
+    { "name": "medidas", "label": "Medidas (ancho x alto x fondo)", "type": "text", "required": false },
+    { "name": "material", "label": "Material preferido", "type": "text", "required": false },
+    { "name": "color", "label": "Color", "type": "text", "required": false },
+    { "name": "cantidad", "label": "Cantidad", "type": "number", "required": true }
+  ],
+  "responses": [
+    { "keywords": ["hola", "buenas", "buenos días", "buenas tardes", "buenas noches"], "reply": "¡Hola! ¿En qué puedo ayudarte?" },
+    { "keywords": ["gracias", "muchas gracias", "te agradezco"], "reply": "¡De nada! 😊" },
+    { "keywords": ["adiós", "chau", "nos vemos", "hasta luego"], "reply": "¡Hasta luego! Que tengas un excelente día." },
+    { "keywords": ["quién eres", "quien eres", "qué eres", "que eres", "quien sos"], "reply": "Soy un asistente virtual." },
+    { "keywords": ["que onda", "q onda", "qonda"], "reply": "¡Qué onda! ¿En qué te ayudo?" }
+  ],
+  "defaultReply": null
+}

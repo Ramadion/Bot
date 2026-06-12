@@ -1,0 +1,9 @@
+node_modules/
+sessions/
+.wwebjs_auth/
+.wwebjs_cache/
+.env
+dist/
+release/
+*.exe
+*.AppImage

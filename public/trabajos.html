@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot WhatsApp - Trabajos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="sidebar">
+    <h2>🤖 Bot WhatsApp</h2>
+    <a href="/">📊 Dashboard</a>
+    <a href="/horarios">📅 Horarios</a>
+    <a href="/turnos">📋 Turnos</a>
+    <a href="/trabajos" class="active">🔧 Trabajos</a>
+    <a href="/settings">⚙️ Config</a>
+  </nav>
+  <div class="main">
+    <div class="header"><h1>🔧 Trabajos / Pedidos</h1><p id="trabajosCount">Cargando...</p></div>
+    <div class="card" style="overflow-x:auto">
+      <div id="trabajosContainer"><div class="empty">Cargando...</div></div>
+    </div>
+  </div>
+  <script>
+    function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function formatFecha(fecha) {
+      if (!fecha) return '—';
+      const [y,m,d] = fecha.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function formatTimestamp(ts) {
+      const d = new Date(ts);
+      return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    async function load() {
+      try {
+        const r = await fetch('/api/trabajos');
+        const data = await r.json();
+        document.getElementById('trabajosCount').textContent = `Total: ${data.length} trabajo(s)`;
+
+        if (data.length === 0) {
+          document.getElementById('trabajosContainer').innerHTML = '<div class="empty">No hay trabajos registrados.</div>';
+          return;
+        }
+
+        const estados = { pendiente: '🟡 Pendiente', en_proceso: '🔵 En proceso', listo: '🟢 Listo', entregado: '⚪ Entregado' };
+
+        let html = '<table><thead><tr><th>ID</th><th>Descripción</th><th>Cliente</th><th>Teléfono</th><th>Fecha</th><th>Estado</th><th>Registrado</th><th>Acción</th></tr></thead><tbody>';
+        data.forEach(t => {
+          const fieldsHtml = t.fieldValues ? Object.entries(t.fieldValues).map(([k,v]) => v ? `<br><small>${esc(k)}: ${esc(v)}</small>` : '').join('') : '';
+          html += `<tr>
+            <td>#${t.id}</td>
+            <td>${esc(t.descripcion)}${fieldsHtml}</td>
+            <td>${esc(t.nombre)}</td>
+            <td>${t.telefono}</td>
+            <td>${formatFecha(t.fecha)} ${t.hora || ''}</td>
+            <td><select class="estado-select" data-id="${t.id}" onchange="cambiarEstado(${t.id}, this.value)">
+              ${Object.entries(estados).map(([k,v]) => `<option value="${k}" ${t.estado === k ? 'selected' : ''}>${v}</option>`).join('')}
+            </select></td>
+            <td style="font-size:12px;color:#888">${formatTimestamp(t.timestamp)}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteTrabajo(${t.id})">×</button></td>
+          </tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('trabajosContainer').innerHTML = html;
+      } catch {}
+    }
+
+    async function cambiarEstado(id, estado) {
+      try {
+        await fetch(`/api/trabajos/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estado }),
+        });
+      } catch {}
+    }
+
+    async function deleteTrabajo(id) {
+      if (!confirm('¿Eliminar este trabajo?')) return;
+      try {
+        const r = await fetch(`/api/trabajos/${id}`, { method: 'DELETE' });
+        if (r.ok) load();
+      } catch {}
+    }
+
+    load();
+  </script>
+</body>
+</html>
