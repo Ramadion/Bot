@@ -29,7 +29,8 @@
     },
     "linux": {
       "target": "AppImage",
-      "icon": null
+      "icon": null,
+      "executableArgs": ["--no-sandbox", "--use-gl=swiftshader"]
     },
     "nsis": {
       "oneClick": false,

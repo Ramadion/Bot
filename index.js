@@ -10,32 +10,6 @@ const CONFIG_FILE = path.join(__dirname, 'config.json');
 const HORARIOS_FILE = path.join(__dirname, 'horarios.json');
 const TURNOS_FILE = path.join(__dirname, 'turnos.json');
 const TRABAJOS_FILE = path.join(__dirname, 'trabajos.json');
-
-function ensureSingleInstance() {
-  const PID_FILE = path.join(__dirname, 'bot.pid');
-  try {
-    if (fs.existsSync(PID_FILE)) {
-      const oldPid = parseInt(fs.readFileSync(PID_FILE, 'utf-8').trim(), 10);
-      if (!isNaN(oldPid)) {
-        try {
-          process.kill(oldPid, 0);
-          console.log(`🔄 Matando proceso anterior (PID ${oldPid})...`);
-          process.kill(oldPid, 'SIGTERM');
-        } catch (e) {
-          if (e.code !== 'ESRCH') {
-            try { fs.unlinkSync(PID_FILE); } catch {}
-          }
-        }
-      }
-    }
-  } catch {}
-  fs.writeFileSync(PID_FILE, String(process.pid));
-  process.on('exit', () => {
-    try { fs.unlinkSync(PID_FILE); } catch {}
-  });
-}
-ensureSingleInstance();
-
 function loadJSON(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf-8')); }
   catch { return (file.endsWith('turnos.json') || file.endsWith('trabajos.json')) ? [] : {}; }
@@ -582,6 +556,11 @@ client.initialize().catch(err => {
 const app = express();
 app.use(express.json());
 
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+});
+
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 app.get('/horarios', (req, res) => res.sendFile(path.join(__dirname, 'public', 'horarios.html')));
 app.get('/turnos', (req, res) => res.sendFile(path.join(__dirname, 'public', 'turnos.html')));
@@ -745,23 +724,30 @@ app.post('/api/reconnect', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT);
-server.on('error', err => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`⚠️ Puerto ${PORT} en uso. Liberando...`);
-    try {
-      require('child_process').execSync(`fuser -k ${PORT}/tcp 2>/dev/null`, { timeout: 3000 });
-      setTimeout(() => server.listen(PORT), 1000);
-    } catch {
-      console.error('❌ No se pudo liberar el puerto. Cerrando.');
+function startServer(port, attempt) {
+  const s = app.listen(port);
+  const maxAttempts = 5;
+  s.on('error', err => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`⚠️ Puerto ${port} en uso (intento ${attempt}/${maxAttempts}). Liberando...`);
+      try {
+        require('child_process').execSync(`fuser -k ${port}/tcp 2>/dev/null`, { timeout: 3000 });
+      } catch {}
+      if (attempt < maxAttempts) {
+        setTimeout(() => startServer(port, attempt + 1), 1500);
+      } else {
+        console.error('❌ No se pudo liberar el puerto tras varios intentos. Cerrando.');
+        process.exit(1);
+      }
+    } else {
+      console.error('❌ Error del servidor:', err.message);
       process.exit(1);
     }
-  } else {
-    console.error('❌ Error del servidor:', err.message);
-    process.exit(1);
-  }
-});
-server.on('listening', () => {
-  console.log(`🌐 Web UI: http://localhost:${PORT}`);
-});
+  });
+  s.on('listening', () => {
+    console.log(`🌐 Web UI: http://localhost:${port}`);
+  });
+}
+
+const PORT = process.env.PORT || 3000;
+startServer(PORT, 1);

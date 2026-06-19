@@ -4,13 +4,16 @@ process.env.GTK_THEME = 'Adwaita';
 
 const { app, BrowserWindow, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
+const http = require('http');
 const { fork } = require('child_process');
 
 let mainWindow;
 let tray;
 let botProcess;
+let restartAttempts = 0;
 
 app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('no-sandbox');
 app.commandLine.appendSwitch('disable-vulkan');
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-gtk');
@@ -23,8 +26,8 @@ function createTray() {
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Abrir', click: () => mainWindow && mainWindow.show() },
     { label: 'Salir', click: () => {
-      if (botProcess) botProcess.kill();
       app.isQuitting = true;
+      killBotProcess();
       app.quit();
     }},
   ]);
@@ -46,7 +49,7 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadURL('http://localhost:3000');
+  mainWindow.loadFile(path.join(__dirname, 'public', 'loading.html'));
   mainWindow.setMenuBarVisibility(false);
 
   mainWindow.on('close', event => {
@@ -73,6 +76,32 @@ function killBotProcess() {
   } catch {}
 }
 
+function isOnLoadingPage() {
+  if (!mainWindow) return false;
+  try {
+    const url = mainWindow.webContents.getURL();
+    return !url || url.includes('loading.html') || url.startsWith('chrome-error://') || url.startsWith('about:');
+  } catch { return true; }
+}
+
+function pollServer() {
+  const poll = () => {
+    setTimeout(poll, 1500);
+    if (!mainWindow) return;
+    const req = http.get('http://localhost:3000/api/status', res => {
+      res.resume();
+      if (res.statusCode === 200 && isOnLoadingPage()) {
+        console.log('🌐 Servidor listo, cargando dashboard...');
+        mainWindow.loadURL('http://localhost:3000');
+      }
+    });
+    req.on('error', () => {});
+    req.setTimeout(5000, () => req.destroy());
+    req.end();
+  };
+  poll();
+}
+
 function startBot() {
   killBotProcess();
 
@@ -82,9 +111,6 @@ function startBot() {
 
   botProcess.stdout.on('data', data => {
     console.log(data.toString());
-    if (data.toString().includes('http://localhost:3000') && mainWindow) {
-      mainWindow.loadURL('http://localhost:3000');
-    }
   });
 
   botProcess.stderr.on('data', data => {
@@ -94,14 +120,21 @@ function startBot() {
   botProcess.on('exit', code => {
     console.log(`Bot process exited with code ${code}`);
     botProcess = null;
-    if (!app.isQuitting) {
+    if (!app.isQuitting && restartAttempts < 3) {
+      restartAttempts++;
+      if (mainWindow && !isOnLoadingPage()) {
+        mainWindow.loadFile(path.join(__dirname, 'public', 'loading.html'));
+      }
       setTimeout(startBot, 3000);
+    } else if (!app.isQuitting) {
+      console.error('❌ Demasiados reinicios. Deteniendo.');
     }
   });
 }
 
 app.whenReady().then(() => {
   startBot();
+  pollServer();
   createTray();
   createWindow();
 });
