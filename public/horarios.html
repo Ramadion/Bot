@@ -16,67 +16,77 @@
     <a href="/settings">⚙️ Config</a>
   </nav>
   <div class="main">
-    <div class="header"><h1>📅 Horarios Disponibles</h1><p>Gestioná los días y horarios para reservar turnos</p></div>
+    <div class="header"><h1>📅 Horarios Semanales</h1><p>Configurá los horarios disponibles para cada día de la semana (se repiten todas las semanas)</p></div>
 
     <div class="card">
-      <h3>➕ Agregar fecha y horarios</h3>
+      <h3>➕ Agregar horarios a un día</h3>
       <div class="form-row">
         <div class="form-group">
-          <label>Fecha</label>
-          <input type="date" id="newFecha">
+          <label>Día</label>
+          <select id="newDia">
+            <option value="lunes">Lunes</option>
+            <option value="martes">Martes</option>
+            <option value="miercoles">Miércoles</option>
+            <option value="jueves">Jueves</option>
+            <option value="viernes">Viernes</option>
+            <option value="sabado">Sábado</option>
+            <option value="domingo">Domingo</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Horarios (separados por coma, ej: 09:00,10:00,11:00)</label>
           <input type="text" id="newHoras" placeholder="09:00, 10:00, 11:00" style="width:300px">
         </div>
-        <button class="btn btn-success" onclick="addFecha()">Agregar</button>
+        <button class="btn btn-success" onclick="addDia()">Guardar</button>
       </div>
     </div>
 
     <div class="card">
-      <h3>📋 Horarios por fecha</h3>
+      <h3>📋 Horarios por día</h3>
       <div id="horariosContainer"><div class="empty">Cargando...</div></div>
     </div>
   </div>
   <script>
+    const DIAS = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+    const DIAS_LABEL = { 'lunes':'Lunes','martes':'Martes','miercoles':'Miércoles','jueves':'Jueves','viernes':'Viernes','sabado':'Sábado','domingo':'Domingo' };
+
     async function load() {
       try {
         const r = await fetch('/api/horarios');
         const data = await r.json();
-        const keys = Object.keys(data);
-        if (keys.length === 0) {
-          document.getElementById('horariosContainer').innerHTML = '<div class="empty">No hay horarios cargados. Agregá uno arriba.</div>';
-          return;
-        }
-        let html = '<table><thead><tr><th>Fecha</th><th>Horarios</th><th>Acciones</th></tr></thead><tbody>';
-        for (const fecha of keys.sort()) {
-          const [y,m,d] = fecha.split('-');
-          const fechaNice = `${d}/${m}/${y}`;
-          const horas = data[fecha];
+        let html = '<table><thead><tr><th>Día</th><th>Horarios</th><th>Acciones</th></tr></thead><tbody>';
+        let hasAny = false;
+        for (const dia of DIAS) {
+          const horas = data[dia] || [];
+          if (horas.length === 0) continue;
+          hasAny = true;
           html += `<tr>
-            <td><strong>${fechaNice}</strong></td>
-            <td><div class="flex">${horas.map(h => `<span style="background:#f0f2f5;padding:3px 10px;border-radius:12px;font-size:13px">${h} <a href="#" onclick="deleteHora('${fecha}','${h}');return false" style="color:#dc3545;text-decoration:none;font-weight:bold">×</a></span>`).join('')}</div></td>
-            <td><button class="btn btn-sm btn-danger" onclick="deleteFecha('${fecha}')">Eliminar día</button></td>
+            <td><strong>${DIAS_LABEL[dia]}</strong></td>
+            <td><div class="flex">${horas.map(h => `<span style="background:#f0f2f5;padding:3px 10px;border-radius:12px;font-size:13px">${h} <a href="#" onclick="deleteHora('${dia}','${h}');return false" style="color:#dc3545;text-decoration:none;font-weight:bold">×</a></span>`).join('')}</div></td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteDia('${dia}')">Eliminar día</button></td>
           </tr>`;
         }
-        html += '</tbody></table>';
+        if (!hasAny) {
+          html = '<div class="empty">No hay horarios cargados. Agregá uno arriba.</div>';
+        } else {
+          html += '</tbody></table>';
+        }
         document.getElementById('horariosContainer').innerHTML = html;
       } catch {}
     }
 
-    async function addFecha() {
-      const fecha = document.getElementById('newFecha').value;
+    async function addDia() {
+      const dia = document.getElementById('newDia').value;
       const horasRaw = document.getElementById('newHoras').value.trim();
-      if (!fecha || !horasRaw) return alert('Completá todos los campos');
+      if (!horasRaw) return alert('Ingresá al menos un horario');
       const horas = horasRaw.split(',').map(h => h.trim()).filter(h => h);
       try {
         const r = await fetch('/api/horarios', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fecha, horas }),
+          body: JSON.stringify({ dia, horas }),
         });
         if (r.ok) {
-          document.getElementById('newFecha').value = '';
           document.getElementById('newHoras').value = '';
           load();
         } else {
@@ -86,18 +96,18 @@
       } catch {}
     }
 
-    async function deleteHora(fecha, hora) {
-      if (!confirm(`¿Eliminar ${hora} del ${fecha}?`)) return;
+    async function deleteHora(dia, hora) {
+      if (!confirm(`¿Eliminar ${hora} de ${DIAS_LABEL[dia]}?`)) return;
       try {
-        await fetch(`/api/horarios/${fecha}/${hora}`, { method: 'DELETE' });
+        await fetch(`/api/horarios/${dia}/${hora}`, { method: 'DELETE' });
         load();
       } catch {}
     }
 
-    async function deleteFecha(fecha) {
-      if (!confirm(`¿Eliminar todos los horarios del ${fecha}?`)) return;
+    async function deleteDia(dia) {
+      if (!confirm(`¿Eliminar todos los horarios de ${DIAS_LABEL[dia]}?`)) return;
       try {
-        await fetch(`/api/horarios/${fecha}`, { method: 'DELETE' });
+        await fetch(`/api/horarios/${dia}`, { method: 'DELETE' });
         load();
       } catch {}
     }

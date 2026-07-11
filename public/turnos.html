@@ -61,7 +61,7 @@
     }
 
     async function deleteTurno(index) {
-      if (!confirm('¿Cancelar este turno? El horario se liberará.')) return;
+      if (!confirm('¿Cancelar este turno?')) return;
       try {
         const r = await fetch(`/api/turnos/${index}`, { method: 'DELETE' });
         if (r.ok) load();
